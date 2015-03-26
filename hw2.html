@@ -1,0 +1,227 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+#info {
+    position: absolute;
+    top: 0px;
+    width: 100%;
+    padding: 10px;
+    text-align: center;
+    color: #ff0000
+}
+
+</style>
+</head>
+
+<body>
+<div id="info">demo page<br/>
+			  <a href="javascript: toggle()">openclose</a> </div>
+</div>
+
+
+<audio id="close" >
+<source src="sounds/closedoor.mp3" type='audio/mp3'>
+</audio>
+
+<audio id="open" >
+<source src="sounds/opendoor.wav" type='audio/wav'>
+</audio>
+
+<script src="js/three.min.js"></script>
+<script src="js/OrbitControls.js"></script>
+<script src="js/KeyboardState.js"></script>
+<script>
+
+var camera, scene, renderer, 
+    clock, control, light;
+var doortanch_top;
+//////control
+var keyboard = new KeyboardState();
+var openclose = 0, angle = 0, first=0;
+var sound_open = document.getElementById ("open");
+var sound_close = document.getElementById ("close");
+
+init();
+animate();
+
+function init() {
+	
+	
+    clock = new THREE.Clock();
+    scene = new THREE.Scene();
+	
+    camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 1000);
+    camera.position.z = 500;
+
+	setdoor();
+	sound_open.volume = 0.1;
+	
+    var gridXZ = new THREE.GridHelper(100, 10);
+    gridXZ.setColors(new THREE.Color(0xff0000), new THREE.Color(0xffffff));
+    //scene.add(gridXZ);
+
+    light = new THREE.PointLight(0xffffff);
+    light.position.set(100, 300, 200);
+    scene.add(light);
+
+    renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0xffffff);
+	
+
+	
+	//// point light
+	light = new THREE.PointLight( 0xffffff, 1 );
+	light.position.set( 0, 0, 0 );
+	scene.add( light );
+	
+	
+	
+    control = new THREE.OrbitControls(camera, renderer.domElement);
+    document.body.appendChild(renderer.domElement);
+    window.addEventListener('resize', onWindowResize, false);
+}
+
+function setdoor(){
+		///////doorframe
+	var doorframe_Geometry = new THREE.BoxGeometry(90, 10, 10);
+	var doorframe_Material = new THREE.MeshPhongMaterial({map:THREE.ImageUtils.loadTexture('images/wood.jpg')
+														  ,bumpmap:THREE.ImageUtils.loadTexture('images/wood_bump.jpg')
+														  ,bumpScale:0.8});
+	var doorframe_botton = new THREE.Mesh( doorframe_Geometry, doorframe_Material );
+	var doorframe_top = new THREE.Mesh( doorframe_Geometry, doorframe_Material );
+	doorframe_botton.position.set( 0,5,0 );
+	doorframe_top.position.set( 0,190,0 );
+	
+	
+	var doorframeLR_Geometry = new THREE.BoxGeometry(100, 10, 10);
+	var doorframe_L = new THREE.Mesh ( doorframeLR_Geometry, doorframe_Material) ;
+	var doorframe_L2 = new THREE.Mesh ( doorframeLR_Geometry, doorframe_Material) ;
+	doorframe_L2.position.set ( 95, 0, 0);
+	doorframe_L.add( doorframe_L2 );
+	
+	doorframe_L.rotation.z = Math.PI/2;
+	doorframe_L.position.set ( -50, 50, 0);
+	
+	
+	var doorframe_R = new THREE.Mesh ( doorframeLR_Geometry, doorframe_Material) ;
+	var doorframe_R2 = new THREE.Mesh ( doorframeLR_Geometry, doorframe_Material) ;
+	doorframe_R2.position.set ( 95, 0, 0);
+	doorframe_R.add( doorframe_R2 );
+	
+	doorframe_R.rotation.z = Math.PI/2;
+	doorframe_R.position.set ( 50, 50, 0);
+	
+	scene.add(doorframe_L);
+	scene.add(doorframe_R);
+	scene.add(doorframe_botton);
+	scene.add(doorframe_top);
+	
+	////door
+	
+	/////doortanch
+	
+	var doortanch_Geometry = new THREE.CylinderGeometry( 2,2,15,32 );
+	var doortanch_Material = new THREE.MeshPhongMaterial({map:THREE.ImageUtils.loadTexture('images/metle2.jpg')});
+	doortanch_top = new THREE.Mesh( doortanch_Geometry, doortanch_Material );
+	var doortanch_botton = new THREE.Mesh( doortanch_Geometry, doortanch_Material );
+	
+	doortanch_botton.position.set ( 0,-130,0 );
+	doortanch_top.add (doortanch_botton);
+	doortanch_top.position.set( 45,160,5 );
+	
+	/////doormain
+	var doormain_Geometry = new THREE.BoxGeometry(90,180,7);
+	var doormain_Material = new THREE.MeshPhongMaterial({map:THREE.ImageUtils.loadTexture('images/wood.jpg')
+														,color:0xCC9933
+														,bumpmap:THREE.ImageUtils.loadTexture('images/wood_bump.jpg')
+														,bumpScale:0.8});
+	var doormain = new THREE.Mesh ( doormain_Geometry, doormain_Material );
+	doormain.position.set(-45,-60,-5);
+	doortanch_top.add(doormain);
+	
+	//////door handle
+	var doorhandle1_Geometry = new THREE.CylinderGeometry( 3,3,7,32 );
+	var doorhandle_Material = new THREE.MeshLambertMaterial({color:0xffffff});
+	var doorhandle1 = new THREE.Mesh ( doorhandle1_Geometry, doorhandle_Material );
+	
+	var doorhandle2_Geometry = new THREE.SphereGeometry(5,32,16);
+	var doorhandle2 = new  THREE.Mesh( doorhandle2_Geometry, doorhandle_Material );
+	doorhandle2.position.set( 0,5,0 );
+	
+	doorhandle1.add(doorhandle2);
+	doorhandle1.rotation.x = Math.PI/2;
+	doorhandle1.position.set( -30,0,5 );
+	
+	doormain.add(doorhandle1);
+	
+	scene.add(doortanch_top);
+	
+	
+	
+}
+
+function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+function toggle(){
+	openclose ^= 1;
+	console.log(openclose);
+}
+
+function animate() {
+    control.update();
+	keyboard.update();
+	
+	update();
+    requestAnimationFrame(animate);
+    render();
+}
+
+
+
+function update(){
+	
+	if(angle <=1.7 && (openclose)){
+		angle+=0.008;
+		sound_open.play();
+		first = 1;
+		if(angle >1.65){
+			sound_open.pause();
+		}
+	}
+	if(angle >=0 && (!openclose) ){
+		angle-=0.02;
+		sound_open.play();
+		if(angle<0.1 && first){
+			sound_close.play();
+			
+		}if(angle<0.02){
+			sound_open.pause();
+			sound_open.load();
+		}
+	
+	}
+	
+	
+	
+}
+
+function render() {
+    
+	renderer.clear();
+    renderer.render(scene, camera);
+	doortanch_top.rotation.y = angle;
+	
+}
+
+
+</script>
+</body>
+
+</html>
