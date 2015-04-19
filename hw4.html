@@ -1,0 +1,518 @@
+
+
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+#info {
+    position: absolute;
+    top: 0px;
+    width: 100%;
+    padding: 10px;
+    text-align: center;
+    color: #ff0000
+}
+body {
+  overflow: hidden;
+}
+</style>
+</head>
+
+<body>
+<div id="info">demo page<br/>
+
+	<a href="javascript:cameraset(0);">third person / global views</a>
+</div>
+<script type="x-shader/x-fragment" id="fragmentShaderDepth">
+    uniform sampler2D texture;
+    varying vec2 vUV;
+
+    vec4 pack_depth(const in float depth) {
+
+        const vec4 bit_shift = vec4(256.0 * 256.0 * 256.0, 256.0 * 256.0, 256.0, 1.0);
+        const vec4 bit_mask = vec4(0.0, 1.0 / 256.0, 1.0 / 256.0, 1.0 / 256.0);
+        vec4 res = fract(depth * bit_shift);
+        res -= res.xxyz * bit_mask;
+        return res;
+
+    }
+
+    void main() {
+
+        vec4 pixel = texture2D(texture, vUV);
+
+        if (pixel.a < 0.5) discard;
+
+        gl_FragData[0] = pack_depth(gl_FragCoord.z);
+
+    }
+</script>
+<script type="x-shader/x-vertex" id="vertexShaderDepth">
+    varying vec2 vUV;
+
+    void main() {
+
+        vUV = 1.0 * uv;
+
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+
+        gl_Position = projectionMatrix * mvPosition;
+
+    }
+</script>
+
+<script src="js/three.min.js"></script>
+<script src="js/OrbitControls.js"></script>
+<script src="js/KeyboardState.js"></script>
+<script src="js/madle/hotgirl/hotgirl_0.js"></script>
+<script src="js/madle/hotgirl/hotgirl_1.js"></script>
+<script src="js/madle/hotgirl/hotgirl_2.js"></script>
+<script src="js/madle/hotgirl/hotgirl_3.js"></script>
+<script src="js/madle/hotgirl/hotgirl.js"></script>
+<script src="js/madle/hotgirl/Detector.min.js"></script>
+<script src="js/madle/TrackballControls.min.js"></script>
+<script>
+
+var camera, scene, renderer, control, spotlight;
+var sceneHUD, cameraHUD;
+var clock = new THREE.Clock();
+var tire,tire2, mesh;
+//////control
+var pos = new THREE.Vector3(1, 0, 0);
+var angle = 0, speedR = 0, speedL = 0, speed = 0, rotspeed = 0;
+var keyboard = new KeyboardState();	
+var uniforms, vertexShader, fragmentShader;
+var segway_button, segway_gungun;
+var pa = new THREE.Vector3(80, 0, 0);
+var pb = new THREE.Vector3(-80, 0, 0);
+var pc = new THREE.Vector3(0,0,0);
+var sa = 2, sb = 4;
+var barA, barB;
+var speedInfo;
+var k = 0;
+var xangle = 0;
+var zangle = 0;
+var change = 0;
+var jsonModel;
+var pilot;
+init();
+animate();
+
+
+function initHUD() {
+    sceneHUD = new THREE.Scene();
+    cameraHUD = new THREE.OrthographicCamera(-10, 10, 10, -10, 1, 100);
+    cameraHUD.position.z = 5;
+    cameraHUD.lookAt(new THREE.Vector3(0, 0, 0));
+
+    barA = new THREE.Object3D();
+    powerA = new THREE.Mesh(new THREE.PlaneGeometry(1, 4),
+    new THREE.MeshBasicMaterial({
+        color: 0xff1233,
+        opacity: 0.5,
+        side: THREE.DoubleSide,
+        transparent: true
+    }));
+    powerA.position.set(-2, 2, 0);
+    barA.add(powerA);
+    sceneHUD.add(barA);
+
+    barB = new THREE.Object3D();
+    powerB = new THREE.Mesh(new THREE.PlaneGeometry(1, 4),
+    new THREE.MeshBasicMaterial({
+        color: 0x2212ff,
+        opacity: 0.5,
+        side: THREE.DoubleSide,
+        transparent: true
+    }));
+    powerB.position.set(2, 2, 0);
+    barB.add(powerB);
+    sceneHUD.add(barB);
+}
+function init() {
+	
+	initHUD();
+	
+    clock = new THREE.Clock();
+    scene = new THREE.Scene();
+	
+    camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 10000);
+    camera.position.z = 500;
+    scene.add(camera);
+
+	
+    var gridXZ = new THREE.GridHelper(100, 20);
+    gridXZ.setColors(new THREE.Color(0xff0000), new THREE.Color(0x000000));
+	//scene.add(gridXZ);
+	pilot = new THREE.Object3D();
+	
+	settire();
+	
+
+	var jsonLoader = new THREE.JSONLoader();
+    jsonLoader.load("http://jyunming-chen.github.io/tutsplus/models/android.json", addModelToScene);
+
+	
+	
+	// spotlight
+    light = new THREE.SpotLight(0xffffff, 1.8);
+    light.position.set(0, 400, 0);
+    light.angle = Math.PI/ 3;
+	light.castShadow = true;
+
+    light.shadowMapWidth = 1024;
+    light.shadowMapHeight = 1024;
+
+    light.shadowCameraNear = 5;
+    light.shadowCameraFar = 4000;
+    light.shadowCameraFov = light.angle / Math.PI * 180;
+
+    light.exponent = 10;
+    scene.add(light);
+    light.target = segway_botton; // light follows the box
+	
+	var floor = new THREE.Mesh(new THREE.PlaneGeometry(1600, 1600, 300, 30),
+    new THREE.MeshLambertMaterial({map:new THREE.ImageUtils.loadTexture("images/floor.jpg")}));
+    floor.rotation.x = -Math.PI / 2;
+    scene.add(floor);
+	floor.position.set (0, -50, 0);
+	floor.receiveShadow = true;
+	
+    renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0xffffff);
+	renderer.shadowMapEnabled = true;
+    renderer.shadowMapType = THREE.PCFShadowMap;
+	renderer.shadowMapCullFrontFaces = false;
+	renderer.autoClear = false;
+	
+	
+    control = new THREE.OrbitControls(camera, renderer.domElement);
+    document.body.appendChild(renderer.domElement);
+    window.addEventListener('resize', onWindowResize, addModelToScene);
+}
+
+function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+}
+function settire () {
+	
+	tire = new THREE.Object3D();
+	tire2 = new THREE.Object3D();
+	
+	THREE.ImageUtils.crossOrigin = '';
+	var colormap1 = THREE.ImageUtils.loadTexture("images/tirerim.png")
+    geometry = new THREE.CircleGeometry(55, 32);
+    material = new THREE.MeshBasicMaterial({map:colormap1,
+											transparent:true,
+											side: THREE.DoubleSide
+											});
+											
+	var tire_Right = new THREE.Mesh(geometry, material);
+	var colormap2 = THREE.ImageUtils.loadTexture("images/tire.jpg")
+	colormap2.wrapS = colormap2.wrapT = THREE.RepeatWrapping; 
+	colormap2.repeat.set( 8, 1 );
+    var tire_main = new THREE.Mesh(new THREE.CylinderGeometry(50, 50, 20, 30, 1, true), // only side
+								new THREE.MeshBasicMaterial({map: colormap2,
+															side: THREE.DoubleSide
+															})
+							   );
+	uniforms = {
+        texture: {
+            type: "t",
+            value: colormap1
+        }
+    };
+    vertexShader = document.getElementById('vertexShaderDepth').textContent;
+    fragmentShader = document.getElementById('fragmentShaderDepth').textContent;
+    tire_Right.customDepthMaterial = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        vertexShader: vertexShader,
+        fragmentShader: fragmentShader
+    });
+	
+    tire_main.rotation.z = Math.PI / 2;
+    tire_Right.position.set(10, 0, 0);
+	tire_Right.rotation.y = Math.PI/2;
+    tire_Left = tire_Right.clone();
+	tire_Left.rotation.y = -Math.PI/2;
+    tire_Left.position.set(-10, 0, 0);
+    tire_main.position.set(0, 0, 0);
+	
+	tire_Left.customDepthMaterial = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        vertexShader: vertexShader,
+        fragmentShader: fragmentShader
+    });
+	
+	tire_main.castShadow = true;
+	tire_Left.castShadow = true;
+	tire_Right.castShadow = true;
+	
+    tire.add (tire_Right);
+    tire.add(tire_Left);
+    tire.add(tire_main);
+	
+	var tire2_main = new THREE.Mesh(new THREE.CylinderGeometry(50, 50, 20, 30, 1, true), // only side
+								new THREE.MeshBasicMaterial({map: colormap2,
+															side: THREE.DoubleSide
+															})
+							   );
+	var tire2_Right = new THREE.Mesh(geometry, material);
+	tire2_Right.customDepthMaterial = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        vertexShader: vertexShader,
+        fragmentShader: fragmentShader
+    });
+	
+    tire2_main.rotation.z = Math.PI / 2;
+    tire2_Right.position.set(10, 0, 0);
+	tire2_Right.rotation.y = Math.PI/2;
+    tire2_Left = tire2_Right.clone();
+	tire2_Left.rotation.y = -Math.PI/2;
+    tire2_Left.position.set(-10, 0, 0);
+    tire2_main.position.set(0, 0, 0);
+	
+	tire2_Left.customDepthMaterial = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        vertexShader: vertexShader,
+        fragmentShader: fragmentShader
+    });
+	
+	tire2_main.castShadow = true;
+	tire2_Left.castShadow = true;
+	tire2_Right.castShadow = true;
+	
+	tire2.add(tire2_Right);
+    tire2.add(tire2_Left);
+    tire2.add(tire2_main);
+
+	
+	tire.rotation.order = 'ZYX';
+	tire2.rotation.order = 'ZYX';
+	
+	
+	var segway_gungun_geometry = new THREE.CylinderGeometry (10, 10, 200, 30);
+	var segway_gungun_material = new THREE.MeshBasicMaterial ({
+																map:THREE.ImageUtils.loadTexture("images/metal4.jpg")
+														
+																});
+	segway_gungun = new THREE.Mesh ( segway_gungun_geometry, segway_gungun_material );
+	segway_gungun.receiveShadow = true;
+	segway_gungun.castShadow = true;
+	segway_gungun.position.set (0, 85, 25);
+	
+	var segway_botton_geometry = new THREE.BoxGeometry (140,30,80);
+	var segway_botton_material = new THREE.MeshBasicMaterial({
+															   map:THREE.ImageUtils.loadTexture("images/mat.jpg")
+															   });
+	segway_botton = new THREE.Mesh(segway_botton_geometry, segway_botton_material);
+	segway_botton.receiveShadow = true;
+	segway_botton.castShadow = true;
+	
+	
+	segway_botton.add (segway_gungun);
+	scene.add (tire);
+	scene.add (tire2);
+	segway_botton.add(pilot);
+	scene.add (segway_botton);
+	
+}
+function addModelToScene(geometry, materials) {
+    var material = new THREE.MeshFaceMaterial(materials);
+    jsonModel = new THREE.Mesh(geometry, material);
+    jsonModel.scale.set(20, 20, 20);
+    //jsonModel.rotation.y = Math.PI; // default: back face +z
+	jsonModel.receiveShadow = true;
+	jsonModel.castShadow = true;
+	
+	pilot.add(jsonModel);
+}
+
+
+function animate() {
+	keyboard.update();
+	control.update();
+	
+	
+    if (keyboard.pressed("up")) {
+		sa += 3;
+		sb += 3;
+		xangle += 0.01;
+		if(zangle<0)
+			zangle +=0.005;
+		if(zangle>0)
+			zangle -=0.005;
+	}
+    if (keyboard.pressed("down")){
+		sa -= 3;
+		sb -= 3;
+		xangle -= 0.01;
+		if(zangle<0)
+			zangle +=0.005;
+		if(zangle>0)
+			zangle -=0.005;
+	}
+    if (keyboard.pressed("right")){
+		sa += 2;
+		sb -= 2;
+		zangle += 0.005;
+	}
+    if (keyboard.pressed("left")){
+		sa -= 2;
+		sb += 2;
+		zangle -= 0.005;
+	}
+    
+	xangle = myclamp(xangle, -0.2, 0.1);
+    zangle = myclamp(zangle, -0.1, 0.1);
+	
+	sa = myclamp(sa, -50, 50);
+    sb = myclamp(sb, -50, 50);
+	pilot.rotation.x = xangle;
+    pilot.rotation.z = zangle;
+	
+    dt = 0.08;
+    update(0.08);
+	
+	
+	
+	
+    var tmp = new THREE.Vector3();
+    tmp.copy(pa);
+    tmp.add(pb).multiplyScalar(0.5); // (pa+pb)/2
+    segway_botton.position.copy(tmp);
+    tmp.copy(pa);
+    tmp.sub(pb); // pa - pb;
+    angle = Math.atan2(tmp.x, tmp.z) - Math.PI / 2;
+	segway_botton.setRotationFromAxisAngle(new THREE.Vector3(0, 1, 0), angle);
+
+	//tire.setRotationFromAxisAngle(new THREE.Vector3(0, 1, 0), angle);
+	//tire2.setRotationFromAxisAngle(new THREE.Vector3(0, 1, 0), angle );
+	
+	tire.rotation.order = 'ZYX';
+	tire2.rotation.order = 'ZYX';
+	tire.rotation.y = angle;
+	tire2.rotation.y = angle;
+
+	tire.rotation.x += sa*0.005;
+	tire2.rotation.x += sb*0.005;
+	
+	xangle = myclamp(xangle, -0.2, 0.1);
+    zangle = myclamp(zangle, -0.1, 0.1);
+
+	
+	
+	segway_gungun.rotation.order = 'ZYX';
+    segway_gungun.rotation.x = xangle;
+    segway_gungun.rotation.z = zangle;
+//////////////////////////////////////////////////////////
+	var forward = -xangle * 10;
+    var small = forward * (1 - Math.abs(zangle) / 0.1 * 1.8);
+    if (zangle > 0) {
+        aa = small;
+        bb = forward;
+    } else {
+        aa = forward;
+        bb = small;
+    }
+    barA.scale.copy(new THREE.Vector3(1, Math.abs(sa/50), 1));
+    barB.scale.copy(new THREE.Vector3(1, Math.abs(sb/50), 1));
+
+    var xxa, xxb;
+
+    if (sa < 0) {
+        xxa = Math.PI;
+        barA.children[0].material.color = new THREE.Color(0xffffff);
+    } else {
+        xxa = 0;
+        barA.children[0].material.color = new THREE.Color(0xff0000);
+    }
+    barA.rotation.x = xxa;
+
+    if (sb < 0) {
+        xxb = Math.PI;
+        barB.children[0].material.color = new THREE.Color(0xffffff);
+    } else {
+        xxb = 0;
+        barB.children[0].material.color = new THREE.Color(0x0000ff);
+    }
+    barB.rotation.x = xxb;
+	cameraset();
+    requestAnimationFrame(animate);
+    render();
+}
+
+function myclamp(x, lo, hi) {
+    return (x < lo) ? lo : ((x > hi) ? hi : x);
+}
+
+function update(dt){   
+    var center = new THREE.Vector3();
+    var tmp = new THREE.Vector3();
+    var l = tmp.subVectors(pa, pb).length();
+
+	
+    k = l * sa / (sb - sa);
+    var omega = (sb - sa) / l;
+    //if (omega === 0.0) {
+    if (Math.abs(sa-sb) < 1e-5) {    // this gives better result (no jerk)
+    tmp.subVectors(pa, pb).normalize().cross(new THREE.Vector3(0, 1, 0)).multiplyScalar(sa * dt);
+        pa.add(tmp);
+        pb.add(tmp);
+        tire.position.copy(pa);
+        tire2.position.copy(pb);
+        return; // do a pure translation then return
+    }
+
+    tmp.subVectors(pa, pb).normalize().multiplyScalar(k);
+    center.copy(tmp.add(pa));
+
+    tmp.subVectors(pa, center)
+        .applyAxisAngle(new THREE.Vector3(0, 1, 0), omega * dt)
+        .add(center);
+    pa.copy(tmp);
+
+    tmp.subVectors(pb, center)
+        .applyAxisAngle(new THREE.Vector3(0, 1, 0), omega * dt)
+        .add(center);
+    pb.copy(tmp);
+	  
+	tire.position.copy(pa);
+    tire2.position.copy(pb);
+
+	
+}
+function cameraset(check = 1){
+	if(!check)
+		change ^= 1;
+	if(change){
+		
+		camera.position.set (0, 2000, 0);
+		camera.lookAt( segway_botton.position );
+	}
+	else{
+		
+		var relativeCameraOffset = new THREE.Vector3 (0,500,-250);
+
+		var cameraOffset = relativeCameraOffset.applyMatrix4( segway_botton.matrixWorld );
+
+		camera.position.x = cameraOffset.x;
+		camera.position.y = cameraOffset.y;
+		camera.position.z = cameraOffset.z;
+		camera.lookAt( segway_botton.position );
+	}
+}
+function render() {
+	renderer.clear();
+    renderer.render(scene, camera);
+	renderer.render(sceneHUD, cameraHUD);
+}
+
+
+</script>
+</body>
+
+</html>

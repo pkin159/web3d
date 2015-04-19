@@ -1,0 +1,221 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+	body {
+		background-color: #fff;
+		color: #111;
+		margin: 0px;
+		overflow: hidden;
+		font-family: Monospace;
+		font-size: 20px;
+		position: absolute;
+	}
+	#info {
+		position: absolute;
+		top: 0px; width: 100%;
+		
+		padding: 5px;
+		text-align: center;
+		color: #ffff00
+	}
+	strong {color:red}
+</style>
+</head>
+
+<body>
+
+<div id="info">
+    webgl tutorial 5-2 Dynamic Drive<br/><br/>
+	Home to start<br/>
+	Space to stop<br/>
+	Left/Right to turn <br/>
+	Up/Down to accelerate/decelerate<br/>
+	( object version )
+	<br/>
+</div>
+
+<script src="js/three.min.js"></script>
+<script src="js/OrbitControls.js"></script>
+<script src="js/KeyboardState.js"></script>
+<script src="js/madle/hotgirl/hotgirl_0.js"></script>
+<script src="js/madle/hotgirl/hotgirl_1.js"></script>
+<script src="js/madle/hotgirl/hotgirl_2.js"></script>
+<script src="js/madle/hotgirl/hotgirl_3.js"></script>
+<script src="js/madle/hotgirl/hotgirl.js"></script>
+<script src="js/madle/hotgirl/Detector.min.js"></script>
+<script src="js/madle/TrackballControls.min.js"></script>
+
+<script>
+var camera, scene, renderer, light, controls;
+var keyboard = new KeyboardState();
+var jsonModel;
+var pilot;
+var xangle = 0;
+var zangle = 0;
+var sceneHUD, cameraHUD;
+var barA, barB;
+var sa, sb;
+
+init();
+animate();
+
+function initHUD() {
+    sceneHUD = new THREE.Scene();
+    cameraHUD = new THREE.OrthographicCamera(-10, 10, 10, -10, 1, 100);
+    cameraHUD.position.z = 5;
+    cameraHUD.lookAt(new THREE.Vector3(0, 0, 0));
+
+    barA = new THREE.Object3D();
+    powerA = new THREE.Mesh(new THREE.PlaneGeometry(1, 4),
+    new THREE.MeshBasicMaterial({
+        color: 0xff1233,
+        opacity: 0.5,
+        side: THREE.DoubleSide,
+        transparent: true
+    }));
+    powerA.position.set(-2, 2, 0);
+    barA.add(powerA);
+    sceneHUD.add(barA);
+
+    barB = new THREE.Object3D();
+    powerB = new THREE.Mesh(new THREE.PlaneGeometry(1, 4),
+    new THREE.MeshBasicMaterial({
+        color: 0x2212ff,
+        opacity: 0.5,
+        side: THREE.DoubleSide,
+        transparent: true
+    }));
+    powerB.position.set(2, 2, 0);
+    barB.add(powerB);
+    sceneHUD.add(barB);
+}
+
+function init() {
+
+    initHUD();
+
+    scene = new THREE.Scene();
+    pilot = new THREE.Object3D();
+    scene.add(pilot);
+
+    camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 1000);
+    camera.position.z = 500;
+    scene.add(camera);
+
+    light = new THREE.PointLight(0xffffff);
+    light.position.set(100, 300, 200);
+    scene.add(light);
+    var ambientLight = new THREE.AmbientLight(0x111111);
+    scene.add(ambientLight);
+
+    var gridXZ = new THREE.GridHelper(100, 10);
+    gridXZ.setColors(new THREE.Color(0xff0000), new THREE.Color(0xffffff));
+    scene.add(gridXZ);
+
+    renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0x888888);
+    document.body.appendChild(renderer.domElement);
+    renderer.autoClear = false;
+
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+    var jsonLoader = new THREE.JSONLoader();
+    jsonLoader.load("http://jyunming-chen.github.io/tutsplus/models/android.json", addModelToScene);
+
+}
+
+function addModelToScene(geometry, materials) {
+    var material = new THREE.MeshFaceMaterial(materials);
+    jsonModel = new THREE.Mesh(geometry, material);
+    jsonModel.scale.set(4, 4, 4);
+    jsonModel.rotation.y = Math.PI; // default: back face +z
+    pilot.add(jsonModel);
+}
+
+function animate() {
+    controls.update();
+    keyboard.update();
+
+    if (keyboard.pressed("up")) { // move forward
+        xangle -= 0.01;
+    }
+    if (keyboard.pressed("down")) { // move backward
+        xangle += 0.01;
+    }
+    if (keyboard.pressed("left")) { // left turn
+        zangle += 0.005;
+    }
+    if (keyboard.pressed("right")) { // right turn
+        zangle -= 0.005;
+    }
+    if (keyboard.pressed("space")) { // pause
+        zangle = xangle = 0;
+    }
+
+    xangle = myclamp(xangle, -0.2, 0.1);
+    zangle = myclamp(zangle, -0.1, 0.1);
+
+    // console.log (xangle + ", " + zangle);
+
+    pilot.rotation.x = xangle;
+    pilot.rotation.z = zangle;
+
+    // compute Sa and Sb
+    var forward = -xangle * 10;
+    var small = forward * (1 - Math.abs(zangle) / 0.1 * 1.8);
+    if (zangle > 0) {
+        sa = small;
+        sb = forward;
+    } else {
+        sa = forward;
+        sb = small;
+    }
+
+    barA.scale.copy(new THREE.Vector3(1, Math.abs(sa), 1));
+    barB.scale.copy(new THREE.Vector3(1, Math.abs(sb), 1));
+
+    var xxa, xxb;
+
+    if (sa < 0) {
+        xxa = Math.PI;
+        barA.children[0].material.color = new THREE.Color(0xffffff);
+    } else {
+        xxa = 0;
+        barA.children[0].material.color = new THREE.Color(0xff0000);
+    }
+    barA.rotation.x = xxa;
+
+    if (sb < 0) {
+        xxb = Math.PI;
+        barB.children[0].material.color = new THREE.Color(0xffffff);
+    } else {
+        xxb = 0;
+        barB.children[0].material.color = new THREE.Color(0x0000ff);
+    }
+    barB.rotation.x = xxb;
+
+    requestAnimationFrame(animate);
+    render();
+}
+
+function myclamp(x, lo, hi) {
+    return x < lo ? lo : (x > hi ? hi : x);
+}
+
+function render() {
+    renderer.clear();
+    renderer.render(scene, camera);
+    renderer.render(sceneHUD, cameraHUD); // drawn last: to be blended with others
+}
+
+// important to add this 
+// in jsfiddle!
+window.focus();
+
+</script>
+</body>
+
+</html>
