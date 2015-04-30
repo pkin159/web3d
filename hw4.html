@@ -356,13 +356,13 @@ function animate() {
 			zangle -=0.005;
 	}
     if (keyboard.pressed("right")){
-		sa += 2;
-		sb -= 2;
+		sa += 1;
+		sb -= 1;
 		zangle += 0.005;
 	}
     if (keyboard.pressed("left")){
-		sa -= 2;
-		sb += 2;
+		sa -= 1;
+		sb += 1;
 		zangle -= 0.005;
 	}
     
@@ -374,8 +374,8 @@ function animate() {
 	pilot.rotation.x = xangle;
     pilot.rotation.z = zangle;
 	
-    dt = 0.08;
-    update(0.08);
+    dt = 0.03;
+    update(0.03);
 	
 	
 	
