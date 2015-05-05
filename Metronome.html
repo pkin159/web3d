@@ -1,0 +1,127 @@
+
+
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+	canvas {
+		position: fixed;
+		top: 0;
+		left: 0;
+	}
+</style>
+</head>
+
+<body>
+<script src="http://cdnjs.cloudflare.com/ajax/libs/three.js/r70/three.min.js"></script>
+<script src="https://dl.dropboxusercontent.com/u/3587259/Code/Threejs/OrbitControls.js">
+</script>
+
+<script>
+
+var scene, renderer, camera;
+var cube;
+var controls;
+var angle= 1;
+var clock = new THREE.Clock();
+var cube;
+var check = 1, top = 0;
+init();
+animate();
+
+function init()
+{
+	renderer = new THREE.WebGLRenderer( {antialias:true} );
+	var width = window.innerWidth;
+	var height = window.innerHeight;
+	renderer.setSize (width, height);
+	renderer.setClearColor (0xffffff);
+	
+	document.body.appendChild (renderer.domElement);
+
+	scene = new THREE.Scene();
+	
+	/////////camera
+	camera = new THREE.PerspectiveCamera (45, width/height, 1, 10000);
+	camera.position.y = 50;
+	camera.position.z = 80;
+	camera.lookAt (new THREE.Vector3(0,0,0));
+
+	controls = new THREE.OrbitControls (camera, renderer.domElement);
+	
+	
+	/////show
+	setMetronome();
+	
+	
+	///////gridXZ
+	var gridXZ = new THREE.GridHelper(100, 10);
+	gridXZ.setColors( new THREE.Color(0xff0000), new THREE.Color(0xffffff) );
+	scene.add(gridXZ);
+
+	
+	
+	var pointLight = new THREE.PointLight (0xffffff);
+	pointLight.position.set (0,300,200);
+	scene.add (pointLight);
+	
+	window.addEventListener ('resize', onWindowResize, false);
+}
+
+////////easy Metronome
+function setMetronome(){
+
+	var metronome = new THREE.Object3D();
+
+	var geometry = new THREE.BoxGeometry( 10, 10, 5 );
+	var material = new THREE.MeshBasicMaterial( {color: 0x00ff00} );
+	cube = new THREE.Mesh( geometry, material );
+	
+	
+	var geometry = new THREE.BoxGeometry( 1, 30, 1 );
+	var material = new THREE.MeshBasicMaterial( {color: 0x000000} );
+	var cube2 = new THREE.Mesh( geometry, material );
+	
+	cube2.position.set (0,15,0);
+	cube.add( cube2 );
+	
+	cube.rotation.z -= 30*Math.PI/180;
+	metronome.add( cube );
+	scene.add( metronome )
+	
+}
+
+
+function onWindowResize ()
+{
+	camera.aspect = window.innerWidth / window.innerHeight;
+	camera.updateProjectionMatrix();
+	renderer.setSize (window.innerWidth, window.innerHeight);
+}
+
+function animate()
+{
+	controls.update();
+	requestAnimationFrame ( animate );  
+	renderer.render (scene, camera);
+	
+	var dt = clock.getDelta();
+	////////// change bpm 
+	///////// not sure 
+	var bpm = 120
+	var angle = (bpm * clock.getElapsedTime()) %120;
+	if( angle < 60 ){
+		cube.rotation.z = (angle - 30) * Math.PI/180;
+	}
+	else{
+		cube.rotation.z = ((120-angle)-30)*Math.PI/180;
+	}
+	console.log(angle);
+}
+
+
+
+</script>
+</body>
+
+</html>
