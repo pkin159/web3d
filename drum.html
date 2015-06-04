@@ -1,0 +1,174 @@
+
+
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+#info {
+    position: absolute;
+    top: 0px;
+    width: 100%;
+    padding: 10px;
+    text-align: center;
+    color: #ff0000
+}
+body {
+  overflow: hidden;
+}
+</style>
+</head>
+
+<body>
+<div id="info">demo page<br/>
+
+</div>
+
+<script src="js/r70/three.min.js"></script>
+<script src="js/OrbitControls.js"></script>
+<script src="js/KeyboardState.js"></script>
+
+<script>
+var camera, scene, renderer, light, controls;
+var clock = new THREE.Clock();
+var sticks;
+var angle = 0.2, angle2 = 0.2;
+var check = 1, check2 = 1;
+init();
+animate();
+
+
+
+
+
+
+function init() {
+	 scene = new THREE.Scene();
+    renderer = new THREE.WebGLRenderer({
+        antialias: true
+    });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0x888888);
+	
+	var gridXZ = new THREE.GridHelper(100, 20);
+    gridXZ.setColors(new THREE.Color(0xff0000), new THREE.Color(0x000000));
+	scene.add(gridXZ);
+	
+	Drumsticks();
+	Drum();
+	
+    camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 1000);
+    camera.position.y = 80;
+    camera.position.z = 400;
+    camera.lookAt(new THREE.Vector3(0, 0, 0));
+
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+    var ambientLight = new THREE.AmbientLight(0x555555);
+    scene.add(ambientLight);
+
+    document.body.appendChild(renderer.domElement);
+}
+
+function Drumsticks(){
+	sticks = new THREE.Object3D();
+	sticks2 = new THREE.Object3D();
+	
+	var geometry = new THREE.CylinderGeometry( 1.4, 1.4, 70, 32 );
+	var material = new THREE.MeshBasicMaterial( {color: 0xffff00} );
+	var cylinder = new THREE.Mesh( geometry, material );
+	
+	cylinder.rotation.x = Math.PI/2;
+	cylinder.position.set ( 0, 0, -40 );
+	
+	var geometry1 = new THREE.CylinderGeometry( 1.4, 0.8, 20, 32 ); 
+	var cylinder2 = new THREE.Mesh( geometry1, material );
+	
+	cylinder2.rotation.x = Math.PI/2;
+	cylinder2.position.set ( 0, 0, -85 );
+
+	var geometry3 = new THREE.SphereGeometry( 1.5, 32, 32 ); 
+	var sphere = new THREE.Mesh( geometry3, material );
+	sphere.position.set ( 0, 0, -95 );
+	////////////////////////////////////////////
+	
+	var material2 = new THREE.MeshBasicMaterial( {color: 0xff0000} );
+	var cylinder_2 = new THREE.Mesh( geometry, material2 );
+	
+	cylinder_2.rotation.x = Math.PI/2;
+	cylinder_2.position.set ( 0, 0, -20 );
+	
+	var cylinder2_2 = new THREE.Mesh( geometry1, material2 );
+	
+	cylinder2_2.rotation.x = Math.PI/2;
+	cylinder2_2.position.set ( 0, 0, -65 );
+ 
+	var sphere_2 = new THREE.Mesh( geometry3, material2 );
+	sphere_2.position.set ( 0, 0, -75 );
+	
+	sticks.add(cylinder);
+	sticks.add(cylinder2);
+	sticks.add(sphere);
+	
+	sticks2.add(cylinder_2);
+	sticks2.add(cylinder2_2);
+	sticks2.add(sphere_2);
+	
+	sticks.position.set(-20,50,95);
+	sticks2.position.set(20,50,75);
+	scene.add(sticks);
+	scene.add(sticks2);
+}
+
+function Drum(){
+	drum = new THREE.Object3D();
+	
+	var drum_g = new THREE.CylinderGeometry( 50, 50, 30, 32 );
+	var drum_m = new THREE.MeshBasicMaterial({color: 0xffffff});
+	var drum_mesh = new THREE.Mesh(drum_g,drum_m);
+	drum.position.set(0,15,0);
+	drum.add(drum_mesh);
+	
+	scene.add(drum);
+	
+}
+function animate() {
+
+
+	sticks.rotation.x = angle;
+	sticks2.rotation.x = angle;
+	controls.update();
+	
+	
+	
+	update();
+    requestAnimationFrame(animate);
+    render();
+}
+
+function update(){
+
+		if(check){
+			angle -= 0.05;
+			if(angle < -0.2)
+				check = 0;
+		}
+		if(!check){
+			angle += 0.01;
+			if(angle > 0.2)
+				check = 1;
+		}
+}
+
+function render() {
+
+    // render texture to screne
+	renderer.setClearColor(0x888888);
+    renderer.render(scene, camera);
+}
+
+
+
+</script>
+</body>
+
+</html>

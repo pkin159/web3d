@@ -9,13 +9,21 @@
 		top: 0;
 		left: 0;
 	}
+	#gui {
+    position: absolute;
+    top: 40px;
+    left: 20px;
+    height: 350px;
+	}
 </style>
 </head>
 
 <body>
 <script src="http://cdnjs.cloudflare.com/ajax/libs/three.js/r70/three.min.js"></script>
-<script src="https://dl.dropboxusercontent.com/u/3587259/Code/Threejs/OrbitControls.js">
-</script>
+<script src="https://dl.dropboxusercontent.com/u/3587259/Code/Threejs/OrbitControls.js"></script>
+<script src="js/dat.gui.min.js"</script>
+
+
 
 <script>
 
@@ -26,6 +34,7 @@ var angle= 1;
 var clock = new THREE.Clock();
 var cube;
 var check = 1, top = 0;
+var bpmcontrols;
 init();
 animate();
 
@@ -59,7 +68,14 @@ function init()
 	gridXZ.setColors( new THREE.Color(0xff0000), new THREE.Color(0xffffff) );
 	scene.add(gridXZ);
 
-	
+	 document.body.appendChild(renderer.domElement);
+
+	bpmcontrols = {
+		bpm:20
+	};
+	var gui =  new dat.GUI();
+	gui.domElemet.id = 'gui';
+	gui.add(bpmcontrols, 'BPM',40,200);
 	
 	var pointLight = new THREE.PointLight (0xffffff);
 	pointLight.position.set (0,300,200);
@@ -88,7 +104,7 @@ function setMetronome(){
 	cube.rotation.z -= 30*Math.PI/180;
 	metronome.add( cube );
 	scene.add( metronome )
-	
+
 }
 
 
@@ -105,11 +121,14 @@ function animate()
 	requestAnimationFrame ( animate );  
 	renderer.render (scene, camera);
 	
+	
+	
+	
 	var dt = clock.getDelta();
 	////////// change bpm 
 	///////// not sure 
-	var bpm = 200
-	var angle = (bpm * clock.getElapsedTime()) %120;
+
+	var angle = (bpmcontrols.bpm * clock.getElapsedTime()) %120;
 	if( angle < 60 ){
 		cube.rotation.z = (angle - 30) * Math.PI/180;
 	}

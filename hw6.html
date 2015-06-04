@@ -1,0 +1,151 @@
+
+
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+#info {
+    position: absolute;
+    top: 0px;
+    width: 100%;
+    padding: 10px;
+    text-align: center;
+    color: #ff0000
+}
+body {
+  overflow: hidden;
+}
+</style>
+</head>
+
+<body>
+<div id="info">demo page<br/>
+
+	<a href="javascript:cameraset(0);">third person / global views</a>
+</div>
+
+<script src="js/r70/three.min.js"></script>
+<script src="js/OrbitControls.js"></script>
+<script src="js/KeyboardState.js"></script>
+<script src="js/Stats.js"></script>
+<script src="3dsmodel/girl_main.js"></script>
+
+<script id="myVertexShader" type="x-shader/x-vertex">
+    varying vec2 vUv;
+    void main() {
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        vUv = uv;
+    }
+</script>
+<script id="myFragmentShader" type="x-shader/x-fragment">
+    uniform sampler2D texture;
+    varying vec2 vUv;
+
+    void main() {
+        vec4 color = texture2D (texture,vUv);
+        if (color.b > 0.85) 
+            discard;
+        else 
+            gl_FragColor = vec4(.2, .2, .2, 0.) + color;
+    }
+</script>
+
+<script>
+var camera, scene, renderer, light, controls;
+var sceneRTT, rtTexture, teapot;
+var angle = 0;
+
+init();
+animate();
+
+function init() {
+    sceneRTT = new THREE.Scene();
+    light = new THREE.PointLight(0xffffff);
+    light.position.set(0, 300, 200);
+    sceneRTT.add(light);
+
+    rtTexture = new THREE.WebGLRenderTarget(
+    window.innerWidth, window.innerHeight, {
+        minFilter: THREE.LinearFilter,
+        magFilter: THREE.NearestFilter,
+        format: THREE.RGBFormat
+    });
+
+    var jsonLoader = new THREE.JSONLoader();
+    jsonLoader.load("http://jyunming-chen.github.io/tutsplus/models/teapot.json", function (geometry) {
+        teapot = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({
+            color: 0xff1234
+        }));
+        teapot.scale.set(32, 32, 32);
+        sceneRTT.add(teapot);
+    });
+
+    //////////////////////////////////////////////////
+
+    scene = new THREE.Scene();
+    var plane = new THREE.PlaneBufferGeometry(50, 50);
+    new THREE.ShaderMaterial({
+        uniforms: {
+			texture:{
+				type:"t",
+				value: rtTexture
+			}
+		},
+		vertexShader: document.getElementById('myVertexShader').textContent,
+		fragmentShader: document.getElementById('myFragmentShader').textContent
+    }));
+    //scene.add(quad);
+
+    for (var i = -5; i <= 5; i++)
+        for (var j = -5; j <= 5; j++) {
+            var quadij = quad.clone();
+            quadij.position.set (50*i,0,50*j);
+            scene.add (quadij);
+        }
+    
+    renderer = new THREE.WebGLRenderer({
+        antialias: true
+    });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0x888888);
+	enderer.shadowMapEnabled = true;
+    renderer.shadowMapType = THREE.PCFShadowMap;
+	
+    camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 1000);
+    camera.position.y = 80;
+    camera.position.z = 400;
+    camera.lookAt(new THREE.Vector3(0, 0, 0));
+
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+    var ambientLight = new THREE.AmbientLight(0x555555);
+    scene.add(ambientLight);
+
+    document.body.appendChild(renderer.domElement);
+}
+
+function animate() {
+    controls.update();
+    angle += 0.02;
+    if (teapot !== undefined) teapot.rotation.y = angle;
+    
+    requestAnimationFrame(animate);
+    render();
+}
+
+function render() {
+    // render teapot to texture
+	renderer.setClearColor(0x0000ff);
+    renderer.render(sceneRTT, camera, rtTexture, true);
+
+    // render texture to screne
+	renderer.setClearColor(0x888888);
+    renderer.render(scene, camera);
+}
+
+
+
+</script>
+</body>
+
+</html>
