@@ -148,12 +148,12 @@ function animate() {
 function update(){
 
 		if(check){
-			angle -= 0.05;
+			angle -= 150* clock.getDelta() * Math.PI/180;
 			if(angle < -0.2)
 				check = 0;
 		}
 		if(!check){
-			angle += 0.01;
+			angle += 50* clock.getDelta() * Math.PI/180;
 			if(angle > 0.2)
 				check = 1;
 		}

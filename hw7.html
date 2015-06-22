@@ -1,0 +1,466 @@
+
+
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+    #info {
+        position: absolute;
+        top: 180px; width: 60%;
+        
+        padding: 5px;
+        text-align: center;
+        color: #ffff00;
+    }
+    #container {
+        position: absolute;
+        width: 60%;
+        float: left;
+        margin-top: 0px;
+    }
+    #cnvsFrame {
+        height: 0;
+        padding-bottom: 70%;
+    }
+    #pucks{
+        position:absolute;
+        top: 140px;
+        width:55%;
+        text-align:right;
+        color: #ffff34;
+    }
+    #score{
+        position:absolute;
+        top: 170px;
+        width:55%;
+        text-align:right;
+        color: #ffff34;
+    }
+    #life{
+        position:absolute;
+        top: 200px;
+        width:55%;
+        text-align:right;
+        color: #ffff34;
+    }
+    body {
+        overflow: auto;
+    }
+</style>
+</head>
+<body>
+<h1 style="text-align:center"> My first game </h1>
+<hr>
+
+<div style="float:right; margin-right: 150px; width:20%;">User Name: 
+    <input id="user" type="text" value="">
+    <br/>
+    <br/>
+    <button id="login" onclick="javascript:userLogin()">Login</button>
+    <button id="start" style="visibility: hidden" onclick="javascript:Start()">Start</button>
+    <p id="message"></p>
+</div>
+
+<div id="container">
+<div id="cnvsFrame">
+    <canvas id="cnvs"> </canvas>
+</div>
+</div>
+
+<div id="info"></div>
+<div id="pucks">PUCKS:0</div>
+<div id="score">SCORE:0</div>
+<div id="life">LIFE:5</div>
+
+<script src="js/r70/three.min.js"></script>
+<script src="js/OrbitControls.js"></script>
+<script src="js/KeyboardState.js"></script>
+<script src="js/Stats.js"></script>
+<script src="3dsmodel/girl_main.js"></script>
+<script src="js/jquery-1.11.1.js"></script>
+
+<script id="myVertexShader" type="x-shader/x-vertex">
+    varying vec2 vUv;
+    void main() {
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        vUv = uv;
+    }
+</script>
+<script id="myFragmentShader" type="x-shader/x-fragment">
+    uniform sampler2D texture;
+    varying vec2 vUv;
+
+    void main() {
+        vec4 color = texture2D (texture,vUv);
+        if (color.b > 0.85) 
+            discard;
+        else 
+            gl_FragColor = vec4(.2, .2, .2, 0.) + color;
+    }
+</script>
+
+<script>
+var camera, scene, renderer, geometry, material, mesh, controls;
+var clock = new THREE.Clock();
+var pucks = [], Max_speed = 300;
+var mospos = new THREE.Vector3();
+var mesh_g;
+var mouse = new THREE.Vector2();
+var ground;
+var theCanvas, theCanvasFrame;
+var pucks_count = 1, which = 1;
+var game_state = false;
+var result = 0;
+//HUD
+var life = 5, score = 0;
+var text_Score, text_Life,  text_Info, text_Pucks;
+var text_Message;
+
+var Puck = function () {
+    this.vel = new THREE.Vector3();
+    this.pos = new THREE.Vector3();
+    this.dead = 0;
+    this.id = -1;
+    this.pColor = new THREE.Color();
+    this.mesh = new THREE.Mesh();
+    this.pointLight = undefined;
+};
+
+Puck.prototype.update = function (dt) {
+    this.pos.add(this.vel.clone().multiplyScalar(dt));
+
+    this.mesh.position.copy(this.pos);
+    this.pointLight.position.set(this.pos.x, 10, this.pos.z);
+    this.pointLight.color = this.pColor;
+    this.mesh.material.color = this.pColor;
+
+};
+
+Puck.prototype.collision = function () {
+    // collision
+    if (this.pos.x > 100) {
+        this.pos.x = 100;
+        this.vel.set(-this.vel.x, 0, this.vel.z);
+        this.pColor.setHSL(Math.random(), Math.random(), Math.random() / 2 + 0.5);
+        //this.vel.multiplyScalar(10);
+    } else if (this.pos.x < -100) {
+        this.pos.x = -100;
+        this.vel.set(-this.vel.x, 0, this.vel.z);
+        this.pColor.setHSL(Math.random(), Math.random(), Math.random() / 2 + 0.5);
+        //this.vel.multiplyScalar(10);
+    }
+    if (this.pos.z > 100 && this.pos.x <= 50 && this.pos.x >= -50) {
+        this.dead =  1;
+
+    } else if (this.pos.z < -100) {
+        this.pos.z = -100;
+        this.vel.set(this.vel.x, 0, -this.vel.z);
+        this.pColor.setHSL(Math.random(), Math.random(), Math.random() / 2 + 0.5);
+        //this.vel.multiplyScalar(10);
+
+    } else if ( this.pos.z > 100 ){
+        this.pos.z = 100;
+        this.vel.set(this.vel.x, 0, -this.vel.z);
+        //this.vel.multiplyScalar(10);
+    }
+    if(this.pos.distanceTo ( mesh_g.position ) <= 15){
+        this.vel.x = this.pos.x - mesh_g.position.x;
+        this.vel.z = this.pos.z - mesh_g.position.z;
+        var chick = 1
+        if(chick){
+            score++;     
+            chick = 0;
+        }
+        this.vel.multiplyScalar(10);
+    }
+    if(this.vel.x > Max_speed)
+        this.vel.x = Max_speed;
+    if(this.vel.x < (-1*Max_speed))
+        this.vel.x = -1*Max_speed;
+    if(this.vel.z > Max_speed)
+        this.vel.z = Max_speed;
+    if(this.vel.z < (-1*Max_speed))
+        this.vel.z = -1*Max_speed;
+}
+
+
+
+init();
+animate();
+
+function newPuck(a) {
+    var puck = new Puck();
+    puck.pos = new THREE.Vector3(0, 1, -100);
+    puck.vel = new THREE.Vector3(150 * (Math.random() * 2 - 1), 0, 170 * (Math.random() * 2 - 1));
+    puck.id = a;
+    puck.pColor = new THREE.Color(0xff0000);
+    puck.mesh = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 2, 20),
+    new THREE.MeshBasicMaterial());
+    puck.pointLight = new THREE.PointLight(0xffffff, 0.7);
+    puck.mesh.material.color = puck.pColor;
+    scene.add(puck.mesh);
+    scene.add(puck.pointLight);
+    return puck;
+}
+
+function init() {
+    
+    theCanvas = document.getElementById("cnvs");
+    theCanvasFrame = document.getElementById("cnvsFrame");
+    //renderer
+    renderer = new THREE.WebGLRenderer({
+        canvas: theCanvas,
+        antialias: true
+    });
+    var ww = theCanvasFrame.clientWidth;
+    var hh = theCanvasFrame.clientHeight;
+    renderer.setSize(ww, hh);
+    renderer.setClearColor(0x000000);
+
+    scene = new THREE.Scene();
+
+   camera = new THREE.PerspectiveCamera(50, theCanvasFrame.clientWidth / theCanvasFrame.clientHeight, 1, 10000);
+    camera.position.y = 200;
+    camera.position.z = 300;
+    camera.lookAt (new THREE.Vector3(0,0,0));
+
+    geometry = new THREE.BoxGeometry(220, 30, 10);
+    material = new THREE.MeshBasicMaterial({
+        transparent: true,
+        color: 0xffffff,
+        opacity: 0.4
+    });
+
+    mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(0, 15, 105);
+    //scene.add(mesh);
+    mesh2 = mesh.clone();
+    mesh2.position.set(0, 15, -105);
+    scene.add(mesh2);
+    mesh3 = mesh.clone();
+    mesh3.rotation.y = Math.PI / 2;
+    mesh3.position.set(105, 15, 0);
+    scene.add(mesh3);
+    mesh4 = mesh.clone();
+    mesh4.rotation.y = Math.PI / 2;
+    mesh4.position.set(-105, 15, 0);
+    scene.add(mesh4);
+
+    //////for disappeared wall
+    geometry_dis = new THREE.BoxGeometry(60,30,10);
+    mesh_1 = new THREE.Mesh(geometry_dis,material);
+    mesh_1.position.set(80,15,105);
+    scene.add(mesh_1);
+    mesh_2 = mesh_1.clone();
+    mesh_2.position.set(-80,15,105);
+    scene.add(mesh_2);
+
+    ////for gaming
+    geometry_game = new THREE.CylinderGeometry(5, 5, 2, 20);
+    mesh_g =new THREE.Mesh(geometry_game,new THREE.MeshBasicMaterial({color:0xff0000}));
+    mesh_g.position.set(0,6,105);
+    scene.add(mesh_g);
+
+
+    ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200, 130, 130),
+    new THREE.MeshLambertMaterial({
+        color: 0xffffff
+    }));
+
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
+
+    // add first puck
+    if(game_state){
+    pucks.push(newPuck(0));
+    setTimeout (startNewPuck, 10000);
+    }
+    for (var i = 1; i < 15; i++) {
+        var thispuck = newPuck(i);
+        thispuck.mesh.visible = false;
+        thispuck.pointLight.intensity = 0;
+        pucks.push(thispuck);
+    }
+    // add remaining pucks, invisible and zero intensity
+    
+    //timeout
+    //setTimeout(timeout, TIME_SPACE*1000);
+    //setTimeout(timeCount, 0);
+
+    //text HUD
+    text_Pucks = window.document.getElementById ('pucks');
+    text_Score = window.document.getElementById ('score');
+    text_Life = window.document.getElementById ('life');
+    text_Info = window.document.getElementById ('info');
+    text_Message = window.document.getElementById ('message');
+
+    document.body.appendChild(renderer.domElement);
+    window.addEventListener('resize', onWindowResize, false);
+    document.addEventListener('mousemove', onDocumentMouseMove, false);
+
+    // start first new puck
+    
+}
+
+function userLogin()
+{
+    name = document.getElementById('user').value;
+    if (name == "")
+        text_Message.innerHTML = "Please Enter Your Name!";
+    else
+    {
+        var objStr = localStorage.getItem ("scores");
+        var records = JSON.parse (objStr);
+
+        if (records != null)
+        {
+            result = searchUser(name, records);
+            if (result >= 0)
+                text_Message.innerHTML = "Hello! "+name+" <br>Your high score: "+result;
+            else
+                text_Message.innerHTML = "Hello! "+name+" <br>You dont have any record.";
+        }
+        else
+            text_Message.innerHTML = "Hello! "+name+" <br>You dont have any record.";
+        
+        document.getElementById('start').style.visibility = "visible";
+    }
+}
+function searchUser(name, records)
+{
+    for (var i = 0; i < records.length; i++)
+    {
+        if (records[i].name === name)
+        {
+            return records[i].score;
+        }
+    }
+}
+
+function Over(){
+    game_state = false;
+    text_Life.innerHTML = "LIFE:"+life;
+    text_Info.innerHTML = "game over";
+
+    for (var i = 0; i < pucks.length; i++)
+    {
+        if (pucks[i] != undefined)
+        {
+            scene.remove(pucks[i].mesh);
+            scene.remove(pucks[i].pointLight);
+            pucks[i].dead = 0;
+            var id = pucks[i].id;
+            delete pucks[i];
+        }
+    }
+
+    if (result < score){
+        var records = [];
+        records.push({name:name,
+                    score:score
+                     });
+    }else{
+       var records = [];
+        records.push({name:name,
+                    score:result
+                     });
+    }   
+    var objStr = JSON.stringify(records);
+    localStorage.setItem("scores",objStr);
+    document.getElementById('start').style.visibliity = "visible";
+}
+function Start(){
+    Reset();
+    
+    text_Info.innerHTML ="";
+    document.getElementById('start').style.visibliity = "hidden";
+}
+function Reset(){
+
+    life = 5;
+    score = 0;
+    which = 1;
+    pucks_count = 1;
+    pucks = [];
+    result = 0;
+    game_state = true;
+
+    init();
+
+}
+function onWindowResize() {
+    camera.aspect = theCanvasFrame.clientWidth / theCanvasFrame.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(theCanvasFrame.clientWidth, theCanvasFrame.clientHeight);
+}
+
+function onDocumentMouseMove(event) {
+
+
+    event.preventDefault();
+    mouse.x = (event.clientX / theCanvasFrame.clientWidth) * 2 - 1 - 0.013;
+    mouse.y = -(event.clientY / theCanvasFrame.clientHeight) * 2 + 1 + 0.28;
+    
+     mesh_g.position.x = mouse.x * 200;
+    if (mesh_g.position.x < -100)
+        mesh_g.position.x = -100;
+    if (mesh_g.position.x > 100)
+        mesh_g.position.x = 100;
+}
+
+function startNewPuck() {
+    if(game_state){
+        //console.log (which);
+        pucks[which].mesh.visible = true;
+        pucks[which].pointLight.intensity = 0.7;
+      
+        pucks_count ++;
+        which++;
+        if (which <= 9)
+            setTimeout (startNewPuck, 10000);
+    }
+}
+
+function animate() {
+        if(game_state){
+            var dt = clock.getDelta();
+
+            text_Life.innerHTML = "LIFE:"+ life;
+            text_Score.innerHTML = "SCORE:"+ score;
+            text_Pucks.innerHTML = "PUCKS:"+ pucks_count;
+            document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+
+            for (i = 0 ; i<which;i++){
+                if(pucks[i] != undefined){
+                    pucks[i].update(dt);
+                    pucks[i].collision();
+                    if(pucks[i].dead){
+                        scene.remove(pucks[i].mesh);
+                        scene.remove(pucks[i].pointLight);
+                        var id = pucks[i].id;
+                        delete pucks[i];
+                        pucks_count--;
+                        life--;
+                        if(!life){
+                            Over();
+                        }
+                        if(!pucks_count){
+                            pucks.push(newPuck(which++));
+                            pucks_count++;
+                        }
+                    }
+                }
+            }
+        }
+
+        //controls.update();
+        requestAnimationFrame(animate);
+        renderer.render(scene, camera);
+
+    
+}
+
+</script>
+</body>
+
+</html>

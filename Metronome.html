@@ -128,7 +128,7 @@ function animate()
 	////////// change bpm 
 	///////// not sure 
 
-	var angle = (bpmcontrols.bpm * clock.getElapsedTime()) %120;
+	var angle = (bpmcontrols.bpm * clock.getDelta()) %120;
 	if( angle < 60 ){
 		cube.rotation.z = (angle - 30) * Math.PI/180;
 	}
